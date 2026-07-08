@@ -1,0 +1,428 @@
+
+Question 7 — Conflict / Communication
+
+Tell me about a time when your validation result did not match the original programmer’s output. How did you resolve the discrepancy?
+
+**Polished Version** (ready for interview):
+
+---
+
+If my validation result did not match the original programmer’s output, I would first avoid assuming either side was wrong. I would systematically identify exactly where the discrepancy occurred — whether it was in big N, denominator, n and percentage, 95% CI, hazard ratio, p-value, or formatting against the approved table shell.
+
+I would then trace the issue back to its source by comparing the SAP, ADaM specification, table shell, and the analysis dataset. This helps determine whether the difference originated from population flags, treatment group assignments, endpoint derivations, censoring rules, or statistical method settings (e.g., model options or stratification).
+
+For example, in a survival table, if the hazard ratio or 95% CI did not match, I would check the Cox model specification, stratification variables, censoring indicator, event definition (progression vs. death), analysis population, and data cutoff rules used by both programs.
+
+Once the root cause was identified, I would discuss it with the original programmer and, if needed, the biostatistician to reach alignment on the correct interpretation. I would then document the issue, root cause, resolution, and re-validation result in the QC log. Finally, I would rerun the program and confirm that the final output fully matches the SAP and table shell before sign-off.
+
+---
+
+Question 8 — TEAE Derivation / Edge Cases
+
+How do you derive treatment-emergent adverse events, or TEAEs, and what edge cases do you pay attention to in oncology studies?
+
+**Polished Version** (ready for interview):
+
+---
+
+For TEAE derivation, I would always start from the protocol and SAP definition, as the treatment-emergent window can vary by study.
+
+In general, a TEAE is defined as an adverse event that starts on or after the first dose of study treatment, or a pre-existing adverse event that worsens in severity after treatment initiation. In the ADAE dataset, I would compare the AE start date against the first dose date and apply the study-defined treatment-emergent window (for example, through 30 days after the last dose or the safety follow-up period specified in the SAP).
+
+Key variables I would carefully handle include AE start and end dates, first and last dose dates, the treatment-emergent flag, severity grade, relationship to study drug, seriousness, action taken, outcome, and MedDRA coding (SOC and PT).
+
+The main edge cases include partial or missing AE start dates, pre-existing AEs that worsen after treatment starts, events occurring after treatment discontinuation but within the safety follow-up window, and events that span multiple treatment periods or dose interruptions. For partial dates, I would follow the SAP-defined imputation rules and apply a conservative approach when appropriate.
+
+In oncology studies, I would pay particular attention to AESIs and disease-related events such as TLS, CRS, ICANS, cytopenias, infections, and hepatic events, because attribution and timing can be clinically complex and require careful review of the source data and medical judgment.
+
+---
+
+
+Question 9 — Pinnacle 21 / Compliance
+
+How do you use Pinnacle 21 in the submission workflow, and how do you handle findings such as errors, warnings, or explainable issues?
+
+**Polished Version** (ready for interview):
+
+---
+
+I use Pinnacle 21 as a key part of the submission compliance workflow for both SDTM and ADaM datasets.
+
+First, I ensure we are running the correct validation configuration, including the appropriate CDISC model version, controlled terminology version, FDA or PMDA validation rules (when applicable), and the matching define.xml and XPT package. A mismatch between the dataset package and the validation version can generate misleading or irrelevant findings.
+
+After running Pinnacle 21, I triage findings by severity: Rejection, Error, Warning, and Notice. I address Rejection- and Error-level findings first, as they may block submission or indicate genuine compliance issues. I then compare all findings against the dataset specifications, define.xml, annotated CRF, reviewer’s guide, and study-specific derivation logic.
+
+For Warnings, I do not automatically assume they are errors. Some warnings are expected due to study design, oncology-specific endpoints, controlled terminology limitations, or sponsor conventions. If a finding is valid, I correct the dataset or metadata. If it is explainable but not fixable, I clearly document the rationale in the SDRG or ADRG.
+
+I prefer to run Pinnacle 21 early and iteratively throughout the programming process rather than only at the final submission stage. This allows compliance issues to be identified and resolved well before the package is locked.
+
+---
+Question 10 — SAS Log / Audit Readiness
+
+What is your standard for SAS log cleanliness before final delivery, and how do you ensure traceability and audit readiness?
+**Polished Version** (ready for interview):
+
+---
+
+For SAS log cleanliness, my standard before final delivery is **zero unexplained** ERRORs, WARNINGs, uninitialized variables, invalid data messages, merge issues, repeated BY values, or unexpected notes. I systematically search across all production and validation logs for key patterns such as ERROR, WARNING, uninitialized, invalid, missing values, and merge-related messages.
+
+For audit readiness, I ensure every program has a clear header containing the program name, author, purpose, input datasets, output files, protocol or study reference, and modification history. I also confirm that the program status, original programmer name, validation programmer name, run date, and sign-off date are properly documented in the QC log.
+
+For traceability, I verify that every output can be traced back to the correct SDTM or ADaM datasets, specifications, SAP, and approved table shells. For validation, I review PROC COMPARE results or independent validation outputs, confirm whether any differences are expected or have been resolved, and document the final resolution.
+
+Before sign-off, I ensure the final RTF/PDF outputs, SAS logs, validation evidence, QC log, and dataset timestamps are fully consistent and audit-ready.
+
+---
+Question 11 — Macro / Standardization
+
+How do you use standard macros or reusable programming tools to improve consistency and efficiency across a large oncology TLF package?
+
+**Polished Version** (ready for interview):
+
+---
+
+For a large oncology TLF package, I would leverage standard macros and reusable programming tools to improve consistency, efficiency, and overall quality.
+
+I would first review sponsor-level or therapeutic-area standard macros, as well as reference macros from previous similar oncology studies. Rather than copying them directly, I would compare the previous study requirements against the current SAP, ADaM specifications, table shells, and sponsor standards to determine what can be reused and what requires study-specific adaptation.
+
+Standard macros are particularly useful for treatment group setup, population denominators, summary statistics, TEAE tables, lab shift tables, Kaplan-Meier outputs, titles, footnotes, pagination, and output formatting. Using them helps ensure consistency across programmers and reduces the risk of table-to-table discrepancies.
+
+If a macro requires modification, I would clearly separate global standard logic from local study-specific parameters. I would document the macro version, input assumptions, key parameters, and any study-specific changes. Before rolling it out across the package, I would validate the macro outputs against manual checks or independent programming.
+
+For a large TLF package, I would also ensure all programmers use the same macro library, formats, templates, and setup programs. If a macro issue is identified, I would assess all affected outputs, fix the root cause centrally, rerun the impacted outputs, and document the resolution in the QC log.
+
+The goal is not only efficiency, but also consistency, traceability, and audit readiness across the entire submission package.
+
+---
+下面是 Question 7–11 中文总结版，适合你面试前快速复习。
+
+⸻
+
+Question 7 — Conflict / Communication
+
+验证结果和原程序不一致，怎么办？
+
+核心思路：
+
+不先判断谁对谁错，而是先定位差异，再追溯来源，最后沟通、记录、重新验证。
+
+如果 validation output 和 original programmer output 不一致，第一步要确认差异具体在哪里：
+
+* Big N
+* denominator 分母
+* n / %
+* 95% CI
+* HR
+* p-value
+* table shell 格式
+
+然后回到源头检查：
+
+* SAP
+* ADaM specification
+* table shell
+* analysis dataset
+
+判断差异来自哪里：
+
+* population flag
+* treatment group assignment
+* endpoint derivation
+* censoring rule
+* model option
+* stratification variable
+* cutoff rule
+
+如果是 survival table 中 HR 或 95% CI 不一致，要重点检查：
+
+* Cox model specification
+* stratification variables
+* censoring indicator
+* event definition，例如 progression vs death
+* analysis population
+* data cutoff rules
+
+最后要和 original programmer 沟通，必要时找 biostatistician 对齐正确解释。确定 root cause 后，把 issue、root cause、resolution、re-validation result 记录在 QC log 里，然后重新跑程序，确认最终 output 和 SAP/table shell 一致后 sign off。
+
+一句话记忆：
+
+先定位 discrepancy，再追 SAP/spec/source data，和 programmer/statistician 对齐，记录 QC log，revalidate 后 sign off。
+
+⸻
+
+Question 8 — TEAE Derivation / Edge Cases
+
+TEAE 如何派生？肿瘤研究要注意什么？
+
+TEAE 的核心定义：
+
+治疗后发生的不良事件，或者治疗前已有但治疗后加重的不良事件。
+
+注意：
+TEAE 来自 ADAE，不是 ADTTE。
+
+派生逻辑：
+
+先看 protocol 和 SAP，因为每个研究的 treatment-emergent window 可能不同。
+
+一般规则：
+
+* AE start date ≥ first dose date → TEAE
+* 治疗前已有 AE，但治疗后 severity worsens → TEAE
+* 发生在 last dose 后 safety follow-up window 内，例如 30 天内，也可能算 TEAE，具体看 SAP
+
+关键变量：
+
+* AE start date
+* AE end date
+* first dose date
+* last dose date
+* treatment-emergent flag
+* severity grade
+* relationship to study drug
+* seriousness
+* action taken
+* outcome
+* MedDRA SOC / PT
+
+主要 edge cases：
+
+* AE start date 部分缺失
+* AE start date 完全缺失
+* baseline AE 治疗后加重
+* 停药后但仍在 safety follow-up window 内发生的 AE
+* 跨多个 treatment period 的 AE
+* dose interruption 期间发生的 AE
+* partial date imputation
+* disease-related AE 和 drug-related AE 的区分
+
+肿瘤研究特别要注意：
+
+* TLS
+* CRS
+* ICANS
+* cytopenias
+* infections
+* hepatic events
+* AESI
+
+一句话记忆：
+
+TEAE 是在 ADAE 中通过 AE onset/worsening 与 first dose 和 safety window 比较来派生，重点处理 partial dates、baseline worsening、post-treatment events 和 oncology AESIs。
+
+⸻
+
+Question 9 — Pinnacle 21 / Compliance
+
+P21 怎么用？Error / Warning 怎么处理？
+
+核心思路：
+
+Pinnacle 21 是 submission compliance workflow 的一部分，不是最后简单跑一下。
+
+第一步：确认配置正确：
+
+* SDTM / ADaM 对应的 CDISC model version
+* controlled terminology version
+* FDA / PMDA validation rules
+* define.xml
+* XPT package
+
+如果 CDISC version、CT version 或 define.xml/XPT 不匹配，会产生 misleading findings。
+
+跑完 P21 后，按照 severity 分级处理：
+
+* Rejection
+* Error
+* Warning
+* Notice
+
+处理方式：
+
+Rejection / Error
+优先处理，因为可能影响 submission，或者说明真正的 compliance issue。
+
+Warning
+不能自动认为是错误。部分 warning 可能是合理的，原因包括：
+
+* study design
+* oncology-specific endpoints
+* controlled terminology limitation
+* sponsor convention
+* study-specific derivation logic
+
+需要对照检查：
+
+* dataset specification
+* define.xml
+* annotated CRF
+* SDRG / ADRG
+* SAP
+* derivation logic
+
+如果 finding 是真实问题，就修 dataset 或 metadata。
+如果 finding 合理但不能修，就在 SDRG / ADRG 中解释清楚。
+
+最佳实践：
+
+P21 要 early and iterative run，不要等 final submission 前才跑。
+
+一句话记忆：
+
+用正确 CDISC/CT/agency rule 配置跑 P21，按 severity 分级处理；能修就修，合理但不可修的写入 SDRG/ADRG，并尽早反复运行。
+
+⸻
+
+Question 10 — SAS Log / Audit Readiness
+
+Final delivery 前 SAS log 的标准是什么？
+
+核心标准：
+
+Final delivery 前必须做到 zero unexplained log issues。
+
+需要检查：
+
+* ERROR
+* WARNING
+* uninitialized variables
+* invalid data messages
+* merge issues
+* repeated BY values
+* unexpected notes
+* missing values notes
+
+Audit readiness 要求每个 program header 清楚记录：
+
+* program name
+* author
+* purpose
+* input datasets
+* output files
+* protocol / study reference
+* modification history
+
+QC log 要记录：
+
+* original programmer
+* validation programmer
+* run date
+* validation status
+* finding
+* resolution
+* sign-off date
+
+Traceability 要确保：
+
+每一个 output 都能追溯到正确的 SDTM/ADaM、specification、SAP 和 approved table shell。
+
+Validation evidence 要检查：
+
+* PROC COMPARE results
+* independent validation outputs
+* differences 是否 expected
+* differences 是否 resolved
+* final resolution 是否 documented
+
+Sign-off 前确认：
+
+* final RTF/PDF outputs
+* SAS logs
+* validation evidence
+* QC log
+* dataset timestamps
+
+全部一致、完整、可审计。
+
+一句话记忆：
+
+我的标准是 zero unexplained ERROR/WARNING；program、output、source data、validation evidence 和 QC log 必须 traceable、consistent、audit-ready。
+
+⸻
+
+Question 11 — Macro / Standardization
+
+如何用标准宏提高大型 oncology TLF package 的一致性和效率？
+
+核心思路：
+
+标准宏不是为了偷懒，而是为了 consistency、efficiency、traceability 和 audit readiness。
+
+第一步：先看可以复用什么：
+
+* sponsor-level standard macros
+* therapeutic-area standard macros
+* previous similar oncology study reference macros
+
+但不能直接 copy。要先和当前研究文件对齐：
+
+* SAP
+* ADaM specification
+* table shell
+* sponsor standard
+* study-specific requirements
+
+标准宏常用于：
+
+* treatment group setup
+* population denominator
+* summary statistics
+* TEAE tables
+* lab shift tables
+* Kaplan-Meier outputs
+* titles
+* footnotes
+* pagination
+* RTF/PDF formatting
+
+好处：
+
+* 减少重复编程
+* 保证不同 programmer 输出一致
+* 减少 table-to-table discrepancy
+* 提高 QC 和交付效率
+
+如果 macro 需要修改，要注意：
+
+* global standard logic 和 local study-specific parameters 分开
+* 记录 macro version
+* 记录 input assumptions
+* 记录 key parameters
+* 记录 study-specific changes
+* rollout 前做 validation
+
+如果 macro 出问题：
+
+不能只修一个 output，要检查所有使用该 macro 的受影响 outputs。
+
+处理流程：
+
+1. identify macro issue
+2. assess impacted outputs
+3. fix root cause centrally
+4. rerun impacted outputs
+5. revalidate
+6. document in QC log
+
+一句话记忆：
+
+I use standard macros to improve efficiency, but I control them through study-specific review, version control, validation, impact assessment, and QC documentation.
+
+⸻
+
+Q7–Q11 总体主线
+
+这几题主要考你是不是 Principal-level programmer，而不是普通执行型 programmer。
+
+你要反复体现这几个能力：
+
+1. 不只看数字，会追 root cause
+2. 不只写代码，会理解 SAP/spec/shell/source data
+3. 不只修一个表，会判断 systemic impact
+4. 不只交 output，会保留 QC log 和 audit trail
+5. 不只复用 macro，会控制 version、validation 和 documentation
+6. 不只跑 P21，会判断哪些 finding 需要修，哪些需要解释
+
+最重要的面试关键词：
+
+root cause, SAP, ADaM specification, table shell, QC log, re-validation, TEAE, ADAE, partial date, P21, SDRG, ADRG, SAS log, traceability, audit readiness, standard macro, version control, impact assessment, submission-ready.
