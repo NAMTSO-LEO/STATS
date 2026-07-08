@@ -1,0 +1,72 @@
+# Principal Statistical Programmer 面试全能宝典 (Regulatory Filing & Advanced Oncology)
+
+## 目录
+1. 岗位核心定位与能力模型
+2. 核心技术硬实力（CDISC & 统计分析实现）
+3. 复杂逻辑与真实项目深挖（Oncology / DILI 72小时窗口）
+4. 项目管理、交付体系与质量控制（QC Log & Timelines）
+5. 领导力与行为面试题（Behavioral - STAR 原则）
+
+---
+
+## 1. 岗位核心定位与能力模型
+
+作为 **Principal Statistical Programmer**，面试官期望看到的不仅是一个“写代码的熟手”，而是一个**全能型技术专家与项目领头人（Lead Programmer）**：
+
+* **技术引领（Technical Leadership）**：能够主导全球新药申报（NDA/BLA）的整体编程策略，开发和优化公司级/项目级标准宏。
+* **方法学融合（Methodology）**：深入理解统计学原理（如生存分析、因果推断），能够直接与 Biostatistician 对等沟通，将 SAP（统计分析计划）无缝转化为高效的程序包。
+* **风控与交付（Risk & Delivery Management）**：在紧迫的申报节点下（如 100% OS Analysis 关键 Cutoff），合理调配资源，精细化管理验证级别（Validation Levels）。
+
+---
+
+## 2. 核心技术硬实力（CDISC & 统计分析实现）
+
+### 2.1 肿瘤学核心终点数据集（ADaM - ADTTE）构建
+在肿瘤试验中，`ADTTE`（时间到事件分析数据集）是最核心、也是最复杂的 ADaM 数据集。
+
+* **参数派生（Parameter Derivation）**：
+  * **PFS（无进展生存期）**：事件（Event）定义为肿瘤进展（PD）或任何原因导致的死亡。
+  * **OS（总生存期）**：事件仅为任何原因导致的死亡。
+  * **DOR（缓解持续时间）**：仅针对达到 CR 或 PR 的患者，计算从首次疗效缓解到进展或死亡的时间。
+* **删失逻辑（Censoring Rules）**：
+  * 必须熟练掌握不同监管机构（FDA vs. EMA）对“连续缺失多次肿瘤评估”时的删失规则差异。
+  * 在两组或多组生存分析比较中，使用著名的 **Cox 比例风险模型（Cox Proportional Hazards Model）** 来估计风险比（Hazard Ratio, HR）：
+  
+  公式表达：h(t | X) = h_0(t) * exp(beta_1 * X_1 + beta_2 * X_2 + ... + beta_k * X_k)
+
+> **高频面试追问**：*在处理真实世界证据（RWE）或临床非标随访数据时，rwPFS（真实世界无进展生存期）与 RCT 的 PFS 在编程实现上有何不同？*
+> **高分回答**：RCT 有固定的访视窗口，而 RWE 的肿瘤评估是不定期的。在构建 `ADTTE` 时，必须引入区间删失（Interval Censoring）或采用“最接近冰点法”定义事件日期；同时对于长期未就诊的患者，需根据药物处方耗尽日（Days of Supply Exhausted）来严格定义右删失（Right Censoring）的日期。
+
+### 2.2 生存分析的图形与统计输出（TFLs）
+* **Kaplan-Meier 曲线**：使用 `PROC LIFETEST` 导出生存率、中位生存时间及其 95% 置信区间。
+* **技术细节**：在生成最终出版级 KM 曲线时，下方必须动态包含 **At-Risk（有风险患者数量）表**，且删失点（Censored marks）必须在曲线上清晰标注。文件名通常严格对应 Section 14.3 有效性部分（如 `t14.3-4.2.x.x-4.1.xx-TB-LB08.jpg`）。
+
+---
+
+## 3. 复杂逻辑与真实项目深挖（Oncology / DILI）
+
+### 3.1 经典案例：潜在药物性肝损伤（Potential DILI / Hy's Law）逻辑实现
+在血液肿瘤（如 Venetoclax / ABT-199 联合 Azacitidine 治疗 AML）的安全性分析中，DILI 的动态窗口判定是高难度编程的典型代表（对应程序如 `m15656-lb-dili.sas` 或 `m15656-howard-list.sas`）。
+
+| 指标 (Lab Parameter) | 海氏法则判定临界值 (Hy's Law Criteria) |
+| :--- | :--- |
+| **ALT** 或 **AST** | > 3 * ULN (正常值上限) |
+| **TBILI (总胆红素)** | > 2 * ULN (且不伴有胆汁淤积 / ALP 升高) |
+| **时间窗口 (Time Window)** | 上述两项指标异常必须在 **72小时内** 互相发生 |
+
+#### SAS 核心编程思路（Self-Join / Horizontal Interleaving）：
+1. **数据清洗**：从 `ADLB` 中筛选出所有发生过 `ALT > 3*ULN`、`AST > 3*ULN` 或 `BIL > 2*ULN` 的记录，记录其确切的采集时间（`ADTM`）。
+2. **转氨酶数据集**：创建一个包含所有转氨酶超标事件的数据集 `TRANS`。
+3. **胆红素数据集**：创建一个包含所有胆红素超标事件的数据集 `BILI`。
+4. **72小时横向合并与时间差计算**：
+   ```sas
+   proc sql;
+       create table potential_dili as
+       select a.usubjid, a.adtm as trans_dtm, b.adtm as bili_dtm,
+              abs(a.adtm - b.adtm)/3600 as hours_diff
+       from trans as a inner join bili as b
+       on a.usubjid = b.usubjid
+       where 0 <= calculated hours_diff <= 72;
+   quit;
+
+
