@@ -1,0 +1,95 @@
+Question 1 — Opening / Positioning
+
+Tell me about yourself and why you are interested in this Principal Statistical Programmer role, especially given your MD/PhD clinical background and your recent focus on RWE/HEOR.
+
+**Here’s a polished, professional version** of your statement — ready to use in a cover letter, LinkedIn message, or as a strong talking point in an interview:
+
+---
+
+With over six years of hands-on experience across CROs, academic research, and RWE-focused organizations, I have developed deep expertise in oncology clinical trial programming and evidence generation. On the clinical trial side, I have built and validated CDISC-compliant SDTM and ADaM datasets, produced submission-ready TLFs, and delivered key survival and time-to-event analyses, including PFS, OS, DOR, Kaplan-Meier curves, and Cox proportional hazards models. Complementing this, I have extensive experience working with real-world data sources (EHR, claims, and registries) to support treatment pattern analyses, comparative effectiveness research, survival outcomes, and external control arm studies.
+
+What distinguishes my profile is my dual perspective as an MD/PhD with nearly a decade of clinical experience in neurosurgery and neuro-oncology. This background enables me to go beyond technical programming: I bring clinical insight into patient journeys, disease progression, treatment switching, and data limitations such as missing follow-up, ensuring that analyses are not only statistically sound but also clinically meaningful and regulatory-appropriate.
+
+I am particularly drawn to this Principal Statistical Programmer role because it sits at the intersection of high-quality regulatory programming, complex oncology endpoints, cross-functional leadership, and submission-grade evidence generation. I am confident that my combination of advanced CDISC/ADaM expertise, oncology analytics experience, RWE perspective, and clinical judgment would allow me to contribute immediately as both a strong technical programmer and a technical lead — helping to deliver traceable, defensible, and clinically relevant outputs that accelerate regulatory submissions and strategic decision-making.
+
+---
+
+### Quick Tips for Use:
+- **Cover letter**: Use the full version as the second or third paragraph.
+- **Interview (Tell me about yourself / Why this role?)**: Shorten to 60–90 seconds by focusing on the first two paragraphs + last sentence.
+- **LinkedIn message** to recruiter/hiring manager: Trim to the first three paragraphs.
+---
+
+Question 2 — ADTTE / Oncology Endpoint
+
+Can you walk me through how you would derive PFS in ADTTE for an oncology study?
+
+**Polished & Professional Version** (ideal for interview or technical discussion):
+
+---
+
+For PFS in the ADTTE dataset, I would always start by strictly following the protocol and SAP definitions, as event and censoring rules can vary by study.
+
+In general, PFS is defined as the time from randomization (or first dose date) to the earliest occurrence of documented disease progression or death from any cause. In ADTTE, the key variables include `STARTDT` (usually randomization or first dose), `ADT` (or `CNSRDT` for censoring), `AVAL`, `CNSR`, `EVNTDESC`, and `PARAM`/`PARAMCD`.
+
+I derive the event date by taking the **earliest qualifying date** between:
+- Documented progression (typically the first RECIST-based PD date from tumor assessment data)
+- Death date (from ADSL or the death domain)
+
+If both progression and death occur, I use the earlier of the two dates as the PFS event date. For subjects without documented progression or death, the record is censored (`CNSR=1`). Censoring is usually at the date of the last adequate tumor assessment prior to the data cutoff or prior to the start of new anti-cancer therapy, as specified in the SAP.
+
+`AVAL` is then calculated as (event/censor date − `STARTDT` + 1), typically reported in days, and I may also derive a months version depending on study requirements.
+
+The most challenging aspects are the censoring rules, which require careful handling of:
+- Missing or non-evaluable tumor assessments
+- Initiation of new anti-cancer therapy before progression
+- Deaths occurring after long gaps in assessments
+- Potential differences between FDA and EMA preferred censoring approaches
+
+I implement these rules transparently with clear derivation logic, flagging, and traceability in the ADTTE dataset. Finally, I validate everything through detailed subject-level listings, sensitivity analyses, and independent QC to ensure the output is submission-ready and defensible.
+
+---
+
+### Why this version works well:
+- Concise yet comprehensive
+- Shows both technical precision and regulatory awareness
+- Demonstrates clinical understanding (e.g., RECIST, patient journey implications)
+- Highlights quality control and validation — key for Principal level
+
+---
+Question 3 — Follow-up
+
+How would you handle a patient who has no documented progression, starts a new anti-cancer therapy, and then dies two months later? Would you count the death as a PFS event or censor the patient?
+
+**Updated & Refined Version** (incorporating your correction):
+
+---
+
+For PFS in the ADTTE dataset, I would **not** automatically count death as an event. I would first strictly follow the study-specific SAP censoring rules.
+
+In general, PFS is defined as the time from randomization (or first dose) to the earliest of documented disease progression or death from any cause. However, when a subject starts new anti-cancer therapy before documented progression or death, many oncology studies censor the subject at the date of the **last adequate tumor assessment prior to the new therapy**. In such cases, a subsequent death after the new anti-cancer therapy would typically **not** be counted as a PFS event, as the subsequent treatment can confound the disease course and interpretation of the endpoint.
+
+Key variables in ADTTE include `STARTDT`, `ADT` (or `CNSRDT`), `AVAL`, `CNSR`, `EVNTDESC`, and `PARAM`/`PARAMCD`. The event date is derived from the earliest qualifying progression (e.g., RECIST PD from tumor assessment data) only when it qualifies under the SAP rules. Censoring is applied according to the SAP for scenarios such as new anti-cancer therapy, missing assessments, or data cutoff.
+
+I always verify the exact rules in the SAP, as some studies include sensitivity analyses or regulatory-specific handling (e.g., differences in FDA vs. EMA preferences) for deaths after missed assessments or after new therapy. I implement the logic transparently with clear flagging and traceability, then validate through subject-level listings and independent QC to ensure the results are robust and submission-ready.
+
+
+⸻
+
+Question 4 — DILI / Hy’s Law
+
+Can you explain how you would program a potential DILI / Hy’s Law flag using ALT/AST and total bilirubin, especially if the criteria must occur within a 72-hour window?
+
+**Polished Version** (ready for interview or technical discussion):
+
+---
+
+For potential DILI or Hy’s Law cases, I would always start by following the study-specific SAP-defined criteria. In general, the key laboratory pattern for Hy’s Law is an elevation of ALT or AST greater than 3 times the upper limit of normal (ULN), concurrent with total bilirubin greater than 2 times ULN, typically in the absence of significant cholestasis (i.e., no marked ALP elevation).
+
+From a programming perspective, I would begin with the ADLB dataset and create two pre-filtered subsets: one containing records where ALT or AST > 3×ULN, and another where total bilirubin > 2×ULN. I would then join these two filtered datasets by subject and evaluate the actual collection date and time (not just visit number) to determine whether the elevations occurred within the required 72-hour window.
+
+A subject would be flagged as a potential DILI case if at least one qualifying ALT/AST and total bilirubin pair is observed within that 72-hour window. I would then thoroughly validate the flag through detailed subject-level listings, reviewing the raw lab values, units, ULN references, exact collection timestamps, and any exclusion criteria (such as ALP elevation or known disease-related causes).
+
+For performance and efficiency, I would avoid a self-join on the full ADLB dataset. Instead, I would first filter to only the abnormal ALT/AST and bilirubin records, then perform the subject-level join on these much smaller datasets.
+
+---
