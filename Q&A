@@ -93,3 +93,294 @@ A subject would be flagged as a potential DILI case if at least one qualifying A
 For performance and efficiency, I would avoid a self-join on the full ADLB dataset. Instead, I would first filter to only the abnormal ALT/AST and bilirubin records, then perform the subject-level join on these much smaller datasets.
 
 ---
+
+Question 5 — QC / Validation
+
+How do you approach independent validation or double programming for a high-priority oncology TLF package under a compressed CSR timeline?
+
+**Polished Version** (ready for interview use):
+
+---
+
+For a high-priority oncology TLF package under a compressed CSR timeline, I would adopt a **risk-based validation approach**.
+
+First, I would review the SAP, ADaM specifications, and table shells to define the validation level for each output. High-impact deliverables — such as primary efficacy tables, key safety summaries, Kaplan-Meier plots, and outputs supporting CSR narratives — would receive full independent validation. Lower-risk outputs would receive targeted validation in line with the study validation plan.
+
+Second, I would validate from both the **data** and **output** perspectives. At the data level, I would verify population flags, denominators, treatment group assignments, endpoint derivations, censoring logic, and key analysis variables. At the output level, I would check big N, n, percentages, confidence intervals, hazard ratios, p-values, footnotes, titles, formatting, pagination, and overall consistency between the generated RTF/PDF outputs and the approved table shells.
+
+Third, I would maintain a structured QC log to document the original programmer, validation programmer, assigned validation level, self-check status, findings, resolutions, and sign-off dates. Under a tight timeline, I would prioritize high-risk outputs first and escalate any systemic issues early rather than waiting until final delivery.
+
+Finally, before sign-off, I would review the SAS logs for errors, warnings, uninitialized variables, and unexpected messages, ensuring all outputs are fully traceable, internally consistent, and submission-ready.
+
+---
+
+This version is clear, structured, and demonstrates strong quality oversight and risk management — very suitable for a Principal Statistical Programmer role.
+
+Question 6 — Leadership / Prioritization
+
+Imagine you are leading 200+ TLFs for a CSR submission, with several Level 1 high-complexity outputs still failing validation one week before delivery. What would you do?
+
+**Polished Version** (ready for interview):
+
+---
+
+If several Level 1 high-complexity outputs were still failing validation one week before CSR delivery, I would **stop and triage** the issues rather than treating them as isolated QC comments.
+
+I would first classify each failing output by impact — whether it affects primary efficacy, key safety, CSR narrative support, regulatory submission, or is limited to formatting. For high-risk outputs (e.g., 14.2 efficacy tables, 14.3 safety tables, TEAE summaries, TLS/CRS/ICANS, DILI, and survival analyses), I would immediately review the validation findings with both the original and validation programmers to identify the root cause — data derivation, population/denominator issues, endpoint logic, censoring rules, or shell interpretation.
+
+I would then update the QC log with the issue owner, list of affected outputs, root cause, action plan, and expected re-validation timeline. If the issue appears systemic (e.g., a shared denominator, treatment-emergent flag, or safety event derivation), I would proactively assess all impacted outputs rather than fixing tables one by one.
+
+For timeline control, I would reassign resources as needed, front-load the highest-risk Level 1 outputs, and defer lower-risk Level 3 formatting checks. I would also escalate early to the study lead or biostatistician with a clear impact assessment and recovery plan, rather than waiting until the delivery date.
+
+Throughout the process, the priority would be to protect data integrity, maintain a clear audit trail, and still deliver a clean, submission-ready package on time.
+
+---
+
+下面是你这 6 个面试题的中文总结版，方便你背诵和理解逻辑。
+
+⸻
+
+Principal Statistical Programmer 面试 Q1–Q6 中文总结
+
+Q1. 自我介绍 / 为什么申请这个岗位
+
+核心回答逻辑：
+
+你有 6 年 CRO、学术研究机构、小型 RWE 公司经验，做过 临床试验数据和真实世界数据。临床试验方面，你做过 CDISC SDTM/ADaM、TLF、PFS/OS/DOR、KM 曲线、Cox 模型；RWE 方面，你接触过 EHR、claims、registry 数据，用于治疗模式、生存分析、比较有效性和外部对照。
+
+你的差异化是：你不是普通 programmer，而是 MD/PhD + 近十年神经外科/神经肿瘤临床背景。所以你理解病人旅程、疾病进展、换药、失访、缺失数据和 endpoint ambiguity。
+
+这个 Principal Statistical Programmer 岗位吸引你，是因为它不只是写代码，而是需要 监管级编程、复杂肿瘤终点、跨团队领导力和 submission-grade evidence generation。
+
+一句话记忆：
+
+I bring together CDISC programming, oncology analytics, RWE perspective, and clinical judgment to deliver traceable, defensible, and clinically meaningful regulatory outputs.
+
+⸻
+
+Q2. 如何在 ADTTE 中派生 PFS
+
+PFS 的标准定义：
+
+从随机化或首次给药日期开始，到最早发生的疾病进展或死亡为止。
+
+关键来源：
+
+* 疾病进展：肿瘤评估数据，例如 RECIST PD
+* 死亡：ADSL 或 death domain
+* 如果 progression 和 death 都有，取较早日期作为 event date
+
+ADTTE 关键变量：
+
+* STARTDT
+* ADT / censoring date
+* AVAL
+* CNSR
+* EVNTDESC
+* PARAM / PARAMCD
+
+如果没有进展或死亡，则删失，通常删失在：
+
+最后一次 adequate tumor assessment 日期，或 SAP 指定的新抗癌治疗前最后一次有效评估日期。
+
+难点：
+
+* 缺失或 non-evaluable tumor assessments
+* 新抗癌治疗前后如何处理
+* death after long gap
+* FDA / EMA censoring rule 差异
+* cutoff date 处理
+
+一句话记忆：
+
+PFS = start date to earliest PD or death; if no event, censor at last adequate tumor assessment according to SAP.
+
+⸻
+
+Q3. 无进展，先开始新抗癌治疗，之后两个月死亡，算 PFS event 吗？
+
+标准回答：
+
+不自动算 death 为 PFS event。先看 SAP。
+
+通常情况下，如果患者没有 documented progression，但先开始了新的抗癌治疗，然后两个月后死亡，一般会：
+
+在新抗癌治疗前的最后一次 adequate tumor assessment 日期删失。
+
+原因：
+
+新治疗会改变疾病自然进程，可能 confound PFS endpoint，因此后面的死亡通常不算原治疗下的 PFS event。
+
+但要补一句：
+
+Some studies may include sensitivity analyses or regulatory-specific rules that handle death after new therapy or missed assessments differently.
+
+一句话记忆：
+
+Usually censor at the last adequate tumor assessment before new anti-cancer therapy, unless SAP specifies otherwise.
+
+⸻
+
+Q4. 如何编程实现 DILI / Hy’s Law 72小时窗口
+
+核心判定逻辑：
+
+Potential DILI / Hy’s Law 通常看：
+
+* ALT 或 AST > 3 × ULN
+* Total bilirubin > 2 × ULN
+* 通常还要排除明显 cholestasis，比如 ALP 显著升高
+* ALT/AST 和 bilirubin 异常要在 72 小时内发生
+
+编程思路：
+
+1. 从 ADLB 开始
+2. 建一个 transaminase dataset：ALT 或 AST > 3×ULN
+3. 建一个 bilirubin dataset：TBILI > 2×ULN
+4. 按 USUBJID join
+5. 用 actual collection datetime 计算时间差，不要只看 visit number
+6. 如果任意一组 ALT/AST + TBILI 配对在 72 小时内，则 flag subject as potential DILI
+7. 通过 subject-level listing 验证 lab value、unit、ULN、datetime、ALP 或 exclusion criteria
+
+性能优化：
+
+不要 full ADLB self-join。先筛选异常记录，再 join 小数据集。
+
+一句话记忆：
+
+Pre-filter abnormal ALT/AST and bilirubin records, join by subject, compare actual collection datetime, and flag if a qualifying pair occurs within 72 hours.
+
+⸻
+
+Q5. 压缩 CSR 时间线下如何做独立验证 / double programming
+
+核心框架：
+
+Risk-based validation approach
+
+第一步：看 SAP、ADaM spec、table shell，决定每个 output 的 validation level。
+
+高风险输出需要 full independent validation，例如：
+
+* primary efficacy tables
+* key safety summaries
+* KM plots
+* CSR narrative supporting outputs
+
+低风险输出可以 targeted validation。
+
+第二步：从 data 和 output 两层验证。
+
+Data level 检查：
+
+* population flags
+* denominators
+* treatment groups
+* endpoint derivations
+* censoring logic
+* key analysis variables
+
+Output level 检查：
+
+* Big N
+* n / %
+* 95% CI
+* HR
+* p-value
+* titles / footnotes
+* formatting / pagination
+* RTF/PDF 和 shell 是否一致
+
+第三步：维护 QC log，记录：
+
+* original programmer
+* validation programmer
+* validation level
+* self-check
+* findings
+* resolution
+* sign-off date
+
+最后：检查 SAS logs：
+
+* ERROR
+* WARNING
+* uninitialized variables
+* unexpected messages
+
+一句话记忆：
+
+I validate risk-based, from SAP/specs to data logic and final output, while maintaining a QC log and ensuring clean SAS logs before sign-off.
+
+⸻
+
+Q6. 200+ TLF，交付前一周多个 Level 1 高复杂输出仍未通过验证，怎么办？
+
+这题考 leadership 和 prioritization。
+
+核心动作：
+
+先 triage，不要一个表一个表盲目修。
+
+第一步：按影响分级：
+
+* primary efficacy
+* key safety
+* CSR narrative
+* regulatory submission
+* formatting-only issue
+
+高风险输出包括：
+
+* 14.2 efficacy tables
+* 14.3 safety tables
+* TEAE summaries
+* TLS
+* CRS / ICANS
+* DILI
+* survival analyses
+
+第二步：召集 original programmer 和 validation programmer，看 root cause：
+
+* ADaM derivation
+* population / denominator
+* endpoint logic
+* censoring rule
+* shell interpretation
+* formatting
+
+第三步：更新 QC log：
+
+* issue owner
+* affected outputs
+* root cause
+* action plan
+* expected re-validation timeline
+* sign-off status
+
+第四步：如果是 systemic issue，比如 denominator、TEAE flag、censoring rule、safety derivation，就要检查所有受影响 outputs，而不是只修一个表。
+
+第五步：资源和时间管理：
+
+* 优先处理 high-risk Level 1 outputs
+* 重新分配资源
+* lower-risk Level 3 formatting checks 后移
+* 尽早向 study lead / biostatistician escalate，并给出 recovery plan
+
+一句话记忆：
+
+I would triage by regulatory impact, identify root cause, document in QC log, assess systemic impact, reassign resources, and escalate early with a clear recovery plan.
+
+⸻
+
+总体记忆主线
+
+你这 6 题背后的核心人设是：
+
+我不是只会写 SAS 的 programmer。
+我能理解 SAP、ADaM、oncology endpoints、censoring rules、safety logic、QC risk 和 submission timeline。
+我能在高压交付下保证输出 traceable、defensible、clinically meaningful、submission-ready。
+
+最重要的几个关键词一定要反复出现：
+
+SAP, ADaM specifications, table shells, ADTTE, PFS/OS/DOR, censoring rules, RECIST, KM/Cox, DILI/Hy’s Law, 72-hour window, TEAE, risk-based validation, independent validation, QC log, clean SAS logs, traceability, escalation, submission-ready.
