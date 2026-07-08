@@ -1,0 +1,232 @@
+# Principal Statistical Programmer 面试全能宝典 (Regulatory Filing & Advanced Oncology)
+
+> 融合版说明：本版本以您提供的进阶技术内容（第 1-3 章）为主干，补充第 4-6 章（QC Log/交付体系、领导力行为面试、反问清单与检查表），后者基于您上传的 AbbVie Venetoclax (ABT-199) 项目材料（M15-656、M19-063）整理，形成一份完整的 Principal 面试准备文档。
+
+## 目录
+
+1. 岗位核心定位与能力模型
+2. 核心技术硬实力（CDISC & 统计分析实现）
+3. 复杂逻辑与真实项目深挖（Oncology / DILI 72小时窗口）
+4. 项目管理、交付体系与质量控制（QC Log & Timelines）
+5. 领导力与行为面试题（Behavioral - STAR 原则）
+6. 反问面试官问题 & 面试前检查清单（附加）
+
+---
+
+## 1. 岗位核心定位与能力模型
+
+作为 **Principal Statistical Programmer**，面试官期望看到的不仅是一个"写代码的熟手"，而是一个**全能型技术专家与项目领头人（Lead Programmer）**：
+
+* **技术引领（Technical Leadership）**：能够主导全球新药申报（NDA/BLA）的整体编程策略，开发和优化公司级/项目级标准宏。
+* **方法学融合（Methodology）**：深入理解统计学原理（如生存分析、因果推断），能够直接与 Biostatistician 对等沟通，将 SAP（统计分析计划）无缝转化为高效的程序包。
+* **风控与交付（Risk & Delivery Management）**：在紧迫的申报节点下（如 100% OS Analysis 关键 Cutoff），合理调配资源，精细化管理验证级别（Validation Levels）。
+
+---
+
+## 2. 核心技术硬实力（CDISC & 统计分析实现）
+
+### 2.1 肿瘤学核心终点数据集（ADaM - ADTTE）构建
+
+在肿瘤试验中，`ADTTE`（时间到事件分析数据集）是最核心、也是最复杂的 ADaM 数据集。
+
+* **参数派生（Parameter Derivation）**：
+  * **PFS（无进展生存期）**：事件（Event）定义为肿瘤进展（PD）或任何原因导致的死亡。
+  * **OS（总生存期）**：事件仅为任何原因导致的死亡。
+  * **DOR（缓解持续时间）**：仅针对达到 CR 或 PR 的患者，计算从首次疗效缓解到进展或死亡的时间。
+* **删失逻辑（Censoring Rules）**：
+  * 必须熟练掌握不同监管机构（FDA vs. EMA）对"连续缺失多次肿瘤评估"时的删失规则差异。
+  * 在两组或多组生存分析比较中，使用著名的 **Cox 比例风险模型（Cox Proportional Hazards Model）** 来估计风险比（Hazard Ratio, HR）：
+
+  公式表达：h(t | X) = h_0(t) * exp(beta_1 * X_1 + beta_2 * X_2 + ... + beta_k * X_k)
+
+> **高频面试追问**：*在处理真实世界证据（RWE）或临床非标随访数据时，rwPFS（真实世界无进展生存期）与 RCT 的 PFS 在编程实现上有何不同？*
+>
+> **高分回答**：RCT 有固定的访视窗口，而 RWE 的肿瘤评估是不定期的。在构建 `ADTTE` 时，必须引入区间删失（Interval Censoring）或采用"最接近日期法"定义事件日期；同时对于长期未就诊的患者，需根据药物处方耗尽日（Days of Supply Exhausted）来严格定义右删失（Right Censoring）的日期。
+
+### 2.2 生存分析的图形与统计输出（TFLs）
+
+* **Kaplan-Meier 曲线**：使用 `PROC LIFETEST` 导出生存率、中位生存时间及其 95% 置信区间。
+* **技术细节**：在生成最终出版级 KM 曲线时，下方必须动态包含 **At-Risk（有风险患者数量）表**，且删失点（Censored marks）必须在曲线上清晰标注。文件名通常严格对应 Section 14.3 有效性部分（如 `t14.3-4.2.x.x-4.1.xx-TB-LB08.jpg`）。
+
+---
+
+## 3. 复杂逻辑与真实项目深挖（Oncology / DILI）
+
+### 3.1 经典案例：潜在药物性肝损伤（Potential DILI / Hy's Law）逻辑实现
+
+在血液肿瘤（如 Venetoclax / ABT-199 联合 Azacitidine 治疗 AML）的安全性分析中，DILI 的动态窗口判定是高难度编程的典型代表（对应程序如 `m15656-lb-dili.sas` 或 `m15656-howard-list.sas`）。
+
+| 指标 (Lab Parameter) | 海氏法则判定临界值 (Hy's Law Criteria) |
+| :--- | :--- |
+| **ALT** 或 **AST** | > 3 × ULN (正常值上限) |
+| **TBILI (总胆红素)** | > 2 × ULN (且不伴有胆汁淤积 / ALP 升高) |
+| **时间窗口 (Time Window)** | 上述两项指标异常必须在 **72小时内** 互相发生 |
+
+#### SAS 核心编程思路（Self-Join / Horizontal Interleaving）：
+
+1. **数据清洗**：从 `ADLB` 中筛选出所有发生过 `ALT > 3*ULN`、`AST > 3*ULN` 或 `BIL > 2*ULN` 的记录，记录其确切的采集时间（`ADTM`）。
+2. **转氨酶数据集**：创建一个包含所有转氨酶超标事件的数据集 `TRANS`。
+3. **胆红素数据集**：创建一个包含所有胆红素超标事件的数据集 `BILI`。
+4. **72小时横向合并与时间差计算**：
+
+   ```sas
+   proc sql;
+       create table potential_dili as
+       select a.usubjid, a.adtm as trans_dtm, b.adtm as bili_dtm,
+              abs(a.adtm - b.adtm)/3600 as hours_diff
+       from trans as a inner join bili as b
+       on a.usubjid = b.usubjid
+       where 0 <= calculated hours_diff <= 72;
+   quit;
+   ```
+
+5. **去重判定阳性受试者**：每位受试者只要存在至少一组满足 72 小时窗口的配对，即可判定为 Potential DILI 阳性，因此按 `USUBJID` 去重：
+
+   ```sas
+   proc sort data=potential_dili out=dili_flag(keep=usubjid) nodupkey;
+       by usubjid;
+   run;
+
+   data dili_flag;
+       set dili_flag;
+       dili_flag = "Y";
+   run;
+   ```
+
+6. **与安全分析集合并生成汇总表分子/分母**（对应 Table 14.3\_\_4.4 的"Subjects Meeting Potential DILI Criteria"行）：
+
+   ```sas
+   proc sql;
+       create table dili_summary as
+       select b.trt01p,
+              count(distinct a.usubjid) as n_dili,
+              count(distinct b.usubjid) as n_total,
+              calculated n_dili / calculated n_total * 100 as pct
+       from adsl as b
+       left join dili_flag as a on a.usubjid = b.usubjid
+       where b.saffl = "Y"
+       group by b.trt01p;
+   quit;
+   ```
+
+> **性能提示（容易被追问）**：Self-join 本质上是笛卡尔积，如果不先把 `TRANS`/`BILI` 限制为"仅异常记录"，在大样本量研究里全量 `ADLB` 自连接会非常昂贵。正确做法是先做异常值预筛选（步骤 1-3），再对小数据集做 join，这也是回答"如何优化这个逻辑的性能"这类追问的关键点。
+
+### 3.2 真实案例延展：从代码到 QC 通过（基于 M15-656 项目）
+
+这是可以直接讲述的实战 STAR 案例，用于回答"你做过的最复杂的安全性分析是什么"：
+
+* **Situation**：M15-656 研究（Venetoclax + Azacitidine vs. Placebo + Azacitidine 治疗 AML）的安全分析集约 427 名受试者，需要在 Group 1（原方案入组）与 Group 2（非原方案入组）两组人群中分别判定 Potential DILI。
+* **Task**：负责这张 Listing（Table 14.3\_\_4.6）与汇总表（Table 14.3\_\_4.4）的编程，要求逻辑上按**实际采样时间**而非访视号判定 72 小时窗口。
+* **Action**：按上述 self-join 思路构建派生逻辑；在 Self-Check 阶段逐条核对 Listing 中标记 `^`（Potential DILI）的记录，确认其对应的 ALT/AST/TBILI 数值、单位换算（U/L、UMOL/L）与时间戳均正确；对于因严重不良事件（SAE）额外加测（Note 中的 `$` 标记）的记录，单独核实是否应计入判定。
+* **Result**：最终汇总表显示总体 Potential DILI 发生率约 2.1%，两组间发生率一致，Listing 与 Summary 表在验证与同行评审阶段均无差异，直接支持了 CSR 安全性叙述部分。
+
+### 3.3 关联复杂逻辑：TEAE（治疗期不良事件）派生与边界情况
+
+同属"复杂逻辑深挖"范畴，DILI 之外面试官常连续追问 TEAE 派生：
+
+> **Q: How do you derive Treatment-Emergent Adverse Events (TEAEs), and what edge cases have you had to handle?**
+>
+> **参考作答**："A TEAE is generally any adverse event with an onset on or after the first dose of study treatment, or a pre-existing event that worsens in severity after dosing. The tricky part is edge cases — partial or missing AE start dates, which require conservative imputation rules per the SAP, and events that span multiple treatment periods in crossover or dose-interruption designs, which need clear rules for attribution to the correct epoch."
+
+---
+
+## 4. 项目管理、交付体系与质量控制（QC Log & Timelines）
+
+### 4.1 分层验证体系（Validation Levels）
+
+> **Q: How do you approach double programming and independent validation?**
+>
+> **参考作答**："I follow a tiered validation approach based on output risk. For Level 1 outputs, the validation programmer independently reprograms the entire output from the ADaM datasets, blinded to the original code, and we reconcile results line by line. For Level 3 outputs, validation focuses on confirming key numbers and logic rather than full independent replication."
+
+考察点：能否清晰区分 Level 1（完全独立复现）与 Level 3（简化核对）的适用场景与风险权衡逻辑，这是 Principal 级别的判断力体现。
+
+### 4.2 QC Log 实战管理（真实项目：M19-063，200+ TLF 产出）
+
+**STAR 案例**：
+
+* **Situation**：一份 CSR 交付涉及 200 余个 TLF 产出，需在分批时间线（首批 TFL、剩余 TFL、约六周后最终 CSR 交付）下完成编程、验证与同行评审。
+* **Task**：需要一种机制实时掌握全量产出的 QC 状态，确保最终 Cutoff 前不遗漏任何未完成项。
+* **Action**：建立并维护集中式 QC Log，逐条记录每个产出的 Validation Level、Original/Validation Programmer、Peer Reviewer、Self-Check 完成情况、RTF 输出核查、验证与评审通过日期；在每日站会中用它定位缺少 Self-Check 或临近截止日仍未通过验证的产出，第一时间升级而非等到周会。
+* **Result**：首批与剩余 TFL 均按期交付，QC Log 提供了完整审计轨迹，证明最终 CSR 交付前所有产出均已通过独立验证与同行评审，无遗留分歧项。
+
+### 4.3 企业标准宏与规范化（Macro & Style Conventions）
+
+> **Q: How do you drive standardization and macro reuse across a programming team?**
+>
+> **参考作答**："On the AbbVie Venetoclax program, every table shell had a corresponding enterprise standard macro — for instance, shell T-AE01 mapped to macro %t_ae01. Before any new output was coded from scratch, the team was required to check whether a standard macro or a reference program from a prior delivery (e.g., the DMC interim analysis) already existed. This cut development time significantly and kept formatting, footnotes, and denominators consistent across the whole TLF package."
+
+### 4.4 Pinnacle 21 与合规性问题排查
+
+> **Q: How do you use Pinnacle 21 in your validation workflow, and how do you resolve compliance findings?**
+>
+> **参考作答**："I run Pinnacle 21 checks early and iteratively, not just before submission. I triage findings by severity — Rejection and Error-level findings get fixed or get a documented Reviewer's Guide explanation if they're not fixable; Warnings are reviewed case by case, since some are expected due to study design and don't represent real data quality issues."
+
+### 4.5 日志清洁与可追溯性（Log Cleanliness & Traceability）
+
+> **Q: What's your process for keeping SAS logs clean, and how do you ensure audit-readiness?**
+>
+> **参考作答**："My standard is zero unexplained ERROR, WARNING, uninitialized-variable, or repeated-observation messages — I grep across all logs for these patterns before sign-off. Every program header records the input dataset's physical location and timestamp, and output timestamps must always be after the ADaM/SDTM timestamps they depend on, so any number can be traced back to its source during an audit."
+
+### 4.6 多批次交付时间线管理（M19-063 实例）
+
+> **Q: Describe a time you had to manage competing priorities across a compressed CSR timeline.**
+>
+> **参考作答**："On a recent oncology CSR, deliverables were staged in batches — an initial TFL batch, a second batch two weeks later, and a final CSR delivery about six weeks after that. I broke the QC log down by section and validation level to identify which outputs were on the critical path (Level 1, high-complexity) versus lower-risk Level 3 outputs, and front-loaded the highest-risk tables early rather than leaving them for the final push."
+
+### 4.7 冲突处理：Original 与 Validation Programmer 分歧
+
+**STAR 案例**：
+
+* **Situation**：某产出验证阶段，独立验证程序员的结果与原程序在部分记录上不一致。
+* **Task**：作为该产出的责任人，需要在不预设"谁错了"的前提下定位根因，并让双方都能验证解决方案。
+* **Action**：要求双方各自独立写出派生逻辑与分母假设文档，随后一起对照 ADaM 源数据核对两份程序；发现分歧源于对某个人群标志边界情况的不同处理方式，双方按 SAP 正确解读达成一致，并在 QC Log 备注栏记录解决过程，重新验证。
+* **Result**：产出顺利通过验证，分歧被完整记录并关闭，团队编程规范中也新增了该边界情况的处理说明，避免未来同类分歧。
+
+---
+
+## 5. 领导力与行为面试题（Behavioral - STAR 原则）
+
+### 5.1 通用行为问题
+
+> **B1. Tell me about a time you mentored a junior or less experienced programmer.**
+>
+> "I paired a junior programmer on a lower-risk Level 3 output first, reviewed their self-check line by line with them rather than just returning comments, and explained the 'why' behind each standard convention. Within a few deliveries, they were independently producing Level 3 outputs with minimal peer-review findings."
+
+> **B2. Describe a situation where you disagreed with a biostatistician on a derivation approach. How did you handle it?**
+>
+> "I raised the concern directly with the specific SAP section and a worked example showing how the two interpretations produced different denominators, rather than a general objection. In that case the statistician's interpretation was correct given a protocol amendment I hadn't accounted for, so I updated my derivation and documented the rationale for future reference."
+
+> **B3. How do you handle a QC finding discovered close to a submission deadline?**
+>
+> "I flag it immediately to the study lead with a clear assessment of scope and risk, rather than trying to quietly fix it alone. Then I triage whether it's isolated to one output or systemic across multiple tables using the same derivation, so we fix and re-validate only what's actually affected."
+
+> **B4. Why are you moving from an RWE/HEOR-heavy background into a more submission-focused Principal Statistical Programmer role, and how does your clinical (MD) background help?**
+>
+> "My clinical training means I don't just implement a derivation mechanically — I understand why a lab value might be missing, why an AE might be recorded a certain way, and where real clinical practice creates messy edge cases in the data. That's been valuable in both RWE and trial programming, because it helps me flag when a 'technically correct' derivation might not reflect what's clinically happening, before it becomes a finding in QC or in an FDA review."
+
+### 5.2 STAR 作答结构提示
+
+回答行为面试题时，建议严格按 **Situation → Task → Action → Result** 四步组织语言，每一步控制在 1-2 句：Situation/Task 交代背景不超过 20 秒，Action 是重点（说清楚"你"具体做了什么，而非团队做了什么），Result 尽量量化（如产出数量、发生率、时间节省）。
+
+---
+
+## 6. 反问面试官问题 & 面试前检查清单（附加）
+
+### 6.1 建议准备的反问（4-5 个）
+
+* "What does the current TLF/CDISC standards governance process look like on your team — is there a centralized macro/shell library, or is it built per study?"
+* "How is validation typically staffed — dedicated validation programmers, or peer validation within the same team?"
+* "What therapeutic areas or submission stages (e.g., NDA, interim DMC analyses) does this role focus on most?"
+* "How does this Principal role interact with biostatistics and regulatory affairs day to day?"
+* "What would success look like in this role in the first 6 months?"
+
+### 6.2 面试前检查清单
+
+1. 重新过一遍简历上每一条项目经验，确保能用 30 秒讲清楚背景、你的角色、结果
+2. 熟练口述第 3-4 章的 STAR 案例，脱稿练习 2-3 遍
+3. 复习最新版 CDISC SDTM/ADaM Implementation Guide 版本号和 Pinnacle 21 常见规则
+4. 复习 Hy's Law / DILI、TEAE 等安全性分析的标准定义与阈值（>3× ULN, >2× ULN 等），确保能脱口而出
+5. 复习 ADTTE 中 PFS/OS/DOR 的事件与删失定义差异，以及 RWE vs RCT 的删失逻辑差异
+6. 准备好向面试官提出的问题清单（见 6.1）
+7. 确认面试形式（是否有 SAS 编程测试/白板题），如有则提前复习 PROC SQL、PROC LIFETEST 语法与宏调试思路
+8. 准备好解释 MD 转型统计编程的职业叙事（见 B4）
